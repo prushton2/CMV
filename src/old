@@ -1,0 +1,26 @@
+child = subprocess.Popen(["gdb"], stdout=subprocess.PIPE, stdin=subprocess.PIPE);
+line = "";
+while True {
+   line += child.stdout.read(1).decode("utf-8");
+   if(line.endswith("(gdb) ")) {
+       break;
+   }
+}
+print (str(line))
+
+print("here");
+
+child.stdin.write(b"file ./main\n");
+child.stdin.flush();
+line = ""
+
+while True {
+   line += child.stdout.read(1).decode("utf-8");
+   if(line.endswith("(gdb) ")) {
+       break;
+   }
+}
+
+print(line);
+
+print("done");
