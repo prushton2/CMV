@@ -1,4 +1,5 @@
 import subprocess
+from mlib import *
 
 class GDB {
     proc = None;

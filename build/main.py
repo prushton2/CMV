@@ -2,54 +2,78 @@
 import time 
 import sys 
 import re 
-from GDB import GDB 
-from malloc import free_var ,memcrawl ,map_memory 
 
-def get_lines_by_prefix (out ,prefix ):
-    lines =[]
-    for i in out .split ("\n"):
-        if (i .startswith (prefix )):
-            lines .append (i );
+from GDB import GDB 
+from mlib import *
+import urwid 
+
+def update (gdb ,memory ,lines ):
+    gdb .read ()
+    out =gdb .read ();
+    #   print(out)
+    lines .append (get_lines_by_prefix (out ,"~")[0][2:-3])
+    
+    #remove preceeding integers from line
+    lines [-1]=lines [-1][len (re .findall (r"^[0-9]*",lines [-1])[0]):]
+    lines [-1]=re .sub (r"\\t","",lines [-1])
+    
+    try :
+        memory =map_memory (gdb ,memory );
+        
+    
+    except ():
+        return ;
+        
+    
+    
+    if (re .search (r"^\s*.*= (\(.*\)|)malloc\(.*\)",lines [-2])):
+        #retrieve variable name that was malloc'd to from the line
+        variable =lines [-2].split ("=")[0].split (" ");
+        if variable [-1]=='':
+            variable =variable [-2]
             
         
-    return lines ;
-    
-
-def struct_info (gdb ,struct_type ):
-    props =[]
-    gdb .writeln ("ptype "+struct_type )
-    #retrieve all variables inside a containing struct
-    struct_types =get_lines_by_prefix (gdb .read (),"~")[1:-1]
-    
-    for i ,j in enumerate (struct_types ):
-        #j is \t* int *data;\\n;
-        vname =j .split (" ")[-1].split ("*")[-1][0:-4]
-        vtype =" ".join (j .split (" ")[4:-1])
-        vtype +=" "+"*"*(len (j .split ("*"))-1)
-        props .append ([vtype ,vname ]);
+        else :
+            variable =variable [-1]
+            
         
-    return props ;
+        memory =memcrawl (gdb ,memory ,variable );
+        
+        #print("Malloc Found: "+variable)
+        
+    
+    elif (re .search (r"^( |\t|\\t)*free\(.*\)",lines [-2])):
+        variable =re .sub (r"^.*free\(","",lines [-2],count =1)
+        variable =variable [0:-2]
+        free_var (gdb ,memory ,variable );
+        #print("Free found: "+variable)
+        
+    
+    
+    return (memory ,lines )
     
 
-def var_info (gdb ,varname ):
+
+def render_memory_text (memory ):
+    variable_render ="";
+    mem_render =""
+    for i in memory [0]:
+        mem_render +=str (i )+": ("+str (memory [0][i ][0])+") "+str (memory [0][i ][1])+"\n"
+        
     
-    #~"$4 = (Node *) 0x5555555592a0\n"
-    gdb .writeln ("p "+varname );
-    memdata =get_lines_by_prefix (gdb .read (),"~")[0];
     
-    #~"$2 = (int *) 0x7fffffffe610\n"
-    gdb .writeln ("p &"+varname );
-    addressdata =get_lines_by_prefix (gdb .read (),"~")[0];
+    for i in memory [1]:
+        variable_render +=str (i )+": "+str (memory [1][i ])+"\n"
+        
     
-    return (
-    addressdata .split (" ")[-1][0:-3],#address
-    addressdata .split ("(")[1].split (")")[0][0:-1],#type
-    memdata .split (" ")[-1][0:-3]#value
-    );
+    return (variable_render ,mem_render )
     
 
 
 def main ():
+    global memory 
+    global lines 
+    
     #load file and stuff
     print ("Enter Input File\n")
     filename =input ("> ")
@@ -63,62 +87,46 @@ def main ():
     lines =["","",""]
     memory =(dict (),dict ());
     
-    while True :
-        gdb .writeln ("n");
-        gdb .read ();
-        lines .append (get_lines_by_prefix (gdb .read (),"~")[0][2:-3]);
-        
-        #remove preceeding integers from line
-        lines [-1]=lines [-1][len (re .findall (r"^[0-9]*",lines [-1])[0]):]
-        lines [-1]=re .sub (r"\\t","",lines [-1])
-        try :
-            memory =map_memory (gdb ,memory );
+    def handle_input (key ):
+        global memory 
+        global lines 
+        if key in ["q","Q"]:
+            raise urwid .ExitMainLoop ()
             
-        except ():
-            return ;
-            
-        
-        print ("\n||||||||||||||||||||||||||||||||||||||||||\n");
-        if (re .search (r"^\s*.*= (\(.*\)|)malloc\(.*\)",lines [-2])):
-            #retrieve variable name that was malloc'd to from the line
-            variable =lines [-2].split ("=")[0].split (" ");
-            if variable [-1]=='':
-                variable =variable [-2]
-                
-            else :
-                variable =variable [-1]
-                
-            memory =memcrawl (gdb ,memory ,variable );
-            
-            print ("Malloc Found: "+variable )
-            
-        elif (re .search (r"^( |\t|\\t)*free\(.*\)",lines [-2])):
-            variable =re .sub (r"^.*free\(","",lines [-2],count =1)
-            variable =variable [0:-2]
-            free_var (gdb ,memory ,variable );
-            print ("Free found: "+variable )
-            
-        else :
-            print ("")
+        elif key in ["n","N"]:
+            gdb .writeln ("n");
+            (memory ,lines )=update (gdb ,memory ,lines )
+            (variable_render ,mem_render )=render_memory_text (memory )
+            txt .set_text (mem_render )
+            txt2 .set_text (variable_render )
+            linestxt .set_text ("\n".join (lines [0:-1])+"\n\n"+lines [-1])
             
         
-        print ("Memory: \n")
-        for i in memory [0]:
-            print (i ,memory [0][i ]);
-            
-        print ("\nVariables: -----------------\n");
-        for i in memory [1]:
-            print (i ,memory [1][i ]);
-            
-        print ("\nLines: ----------------------\n");
-        print ("p "+lines [-3])
-        print ("r "+lines [-2])
-        print ("n "+lines [-1])
-        input ("")
         
     
+    
+    
+    
+    txt =urwid .Text ("")
+    mem =urwid .Filler (txt ,"top")
+    
+    txt2 =urwid .Text ("")
+    var =urwid .Filler (txt2 ,"top")
+    
+    linestxt =urwid .Text ("")
+    linesFiller =urwid .Filler (linestxt ,"bottom")
+    
+    pile =urwid .Pile ([mem ,var ,linesFiller ])
+    
+    top =urwid .Filler (pile ,valign ="top")
+    loop =urwid .MainLoop (top ,unhandled_input =lambda key :handle_input (key ))
+    loop .run ()
+    
+    
+
 
 if (__name__ =="__main__"):
     main ();
     
+
 

@@ -1,0 +1,89 @@
+#!/bin/bython
+import time
+import sys
+import re
+from GDB import GDB
+from mlib import *
+import urwid
+
+def main() {
+    #load file and stuff
+    print("Enter Input File\n")
+    filename = input("> ")
+    gdb = GDB(["gdb", "--interpreter=mi", filename]);
+    gdb.read()
+    gdb.writeln("break main");
+    gdb.read()
+    gdb.writeln("r");
+    gdb.read()
+    gdb.read() #second one here is needed
+    lines = ["","",""]
+    memory = (dict(), dict());
+    
+    while True {
+        gdb.writeln("n");
+        gdb.read();
+        lines.append(get_lines_by_prefix(gdb.read(), "~")[0][2:-3]);
+        
+        #remove preceeding integers from line
+        lines[-1] = lines[-1][len(re.findall(r"^[0-9]*", lines[-1])[0]):]
+        lines[-1] = re.sub(r"\\t", "", lines[-1])
+        try {
+            memory = map_memory(gdb, memory);
+        } 
+        except() {
+            return;
+        }
+        
+        txt = urwid.Text("Hello World")
+
+        fill = urwid.Filler(txt, "top")
+
+        loop = urwid.MainLoop(fill)
+
+        loop.run()
+
+        print("\n||||||||||||||||||||||||||||||||||||||||||\n");
+        if(re.search(r"^\s*.*= (\(.*\)|)malloc\(.*\)", lines[-2])) {
+            #retrieve variable name that was malloc'd to from the line
+            variable = lines[-2].split("=")[0].split(" ");
+            if variable[-1] == '' {
+                variable = variable[-2]
+            }
+            else {
+                variable = variable[-1]
+            }
+            memory = memcrawl(gdb, memory, variable);
+
+            print("Malloc Found: "+variable)
+        } 
+        elif(re.search(r"^( |\t|\\t)*free\(.*\)", lines[-2])) {
+            variable = re.sub(r"^.*free\(", "", lines[-2], count=1)
+            variable = variable[0:-2]
+            free_var(gdb, memory, variable);
+            print("Free found: "+variable)
+        }
+        else {
+            print("")
+        }
+
+        print("Memory: \n")
+        for i in memory[0] {
+            print(i, memory[0][i]);
+        }
+        print("\nVariables: -----------------\n");
+        for i in memory[1] {
+            print(i, memory[1][i]);
+        }
+        print("\nLines: ----------------------\n");
+        print("p "+lines[-3])
+        print("r "+lines[-2])
+        print("n "+lines[-1])
+        input("")
+    }
+}
+
+if (__name__ == "__main__") {
+    main();
+}
+
