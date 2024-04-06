@@ -88,7 +88,11 @@ def map_memory(gdb, mem) {
     memoryLines = get_lines_by_prefix(out, "~");
     for i in memoryLines {
         varname = i.split("=")[0][2:-1];
-        info = var_info(gdb, varname);
+        try {
+            info = var_info(gdb, varname);
+        } except {
+            return (memory, variables)
+        }
         variables[varname] = info[0]
         memory[info[0]] = [info[1], info[2]]
     }

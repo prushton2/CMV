@@ -5,14 +5,24 @@ import re
 
 from GDB import GDB 
 from mlib import *
-import urwid 
+import textual 
+
+from textual .app import App ,ComposeResult 
+from textual .widgets import Header ,Footer ,Button ,Label ,Static 
+from textual .reactive import reactive ,var 
+
 
 def update (gdb ,memory ,lines ):
-    gdb .read ()
+    gdb .read ();
     out =gdb .read ();
-    #   print(out)
-    lines .append (get_lines_by_prefix (out ,"~")[0][2:-3])
     
+    if get_lines_by_prefix (out ,"^")[0].startswith ("error") or get_lines_by_prefix (out ,"*")[0].startswith ("stopped"):
+        lines .append ("End of Program")
+        return (memory ,lines )
+        
+    
+    
+    lines .append (get_lines_by_prefix (out ,"~")[0][2:-3])
     #remove preceeding integers from line
     lines [-1]=lines [-1][len (re .findall (r"^[0-9]*",lines [-1])[0]):]
     lines [-1]=re .sub (r"\\t","",lines [-1])
@@ -66,8 +76,39 @@ def render_memory_text (memory ):
         variable_render +=str (i )+": "+str (memory [1][i ])+"\n"
         
     
-    return (variable_render ,mem_render )
+    return (mem_render ,variable_render )
     
+
+
+
+class TUI (App ):
+    memory =(dict (),dict ())
+    lines =['','','']
+    gdb =None 
+    
+    def on_button_pressed (self ,event ):
+        self .gdb .writeln ("n")
+        (self .memory ,self .lines )=update (self .gdb ,self .memory ,self .lines );
+        
+        rendered_text =render_memory_text (self .memory )
+        
+        self .query_one ("#mem").update (rendered_text [0])
+        self .query_one ("#vars").update (rendered_text [1])
+        self .query_one ("#lines").update ("\n".join (self .lines [-4:-1]))
+        
+    
+    
+    def compose (self ):
+        yield Header ();
+        yield Button ("Next");
+        yield Static (str (self .gdb ),id ="mem");
+        yield Static ("",id ="vars");
+        yield Static ("",id ="lines");
+        yield Footer ();
+        
+    
+    
+
 
 
 def main ():
@@ -87,40 +128,9 @@ def main ():
     lines =["","",""]
     memory =(dict (),dict ());
     
-    def handle_input (key ):
-        global memory 
-        global lines 
-        if key in ["q","Q"]:
-            raise urwid .ExitMainLoop ()
-            
-        elif key in ["n","N"]:
-            gdb .writeln ("n");
-            (memory ,lines )=update (gdb ,memory ,lines )
-            (variable_render ,mem_render )=render_memory_text (memory )
-            txt .set_text (mem_render )
-            txt2 .set_text (variable_render )
-            linestxt .set_text ("\n".join (lines [0:-1])+"\n\n"+lines [-1])
-            
-        
-        
-    
-    
-    
-    
-    txt =urwid .Text ("")
-    mem =urwid .Filler (txt ,"top")
-    
-    txt2 =urwid .Text ("")
-    var =urwid .Filler (txt2 ,"top")
-    
-    linestxt =urwid .Text ("")
-    linesFiller =urwid .Filler (linestxt ,"bottom")
-    
-    pile =urwid .Pile ([mem ,var ,linesFiller ])
-    
-    top =urwid .Filler (pile ,valign ="top")
-    loop =urwid .MainLoop (top ,unhandled_input =lambda key :handle_input (key ))
-    loop .run ()
+    tui =TUI ();
+    tui .gdb =gdb ;
+    tui .run ();
     
     
 
@@ -129,4 +139,35 @@ if (__name__ =="__main__"):
     main ();
     
 
+''' 
+def handle_input(key) {
+        global memory
+        global lines
+        if key in ["q", "Q"] {
+            raise urwid.ExitMainLoop()
+        } elif key in ["n", "N"] {
+            gdb.writeln("n");
+            (memory, lines) = update(gdb, memory, lines)
+            (variable_render, mem_render) = render_memory_text(memory)
+            txt.set_text(mem_render)
+            txt2.set_text(variable_render)
+            linestxt.set_text("\n".join(lines[-3:-1]) + "\n\n" + lines[-1])
+        }
+    }
 
+
+    memtxt = urwid.Text("", align="right")
+    memFiller = urwid.Filler(txt, "top")
+    
+    vartxt = urwid.Text("", align="right")
+    varFiller = urwid.Filler(txt2, "top")
+
+    linestxt = urwid.Text("")
+    linesFiller = urwid.Filler(linestxt, "bottom")
+
+    pile = urwid.Pile([mem, var, linesFiller])
+
+    top = urwid.Filler(pile, valign="top")
+    loop = urwid.MainLoop(top, unhandled_input=lambda key: handle_input(key))
+    loop.run()
+'''

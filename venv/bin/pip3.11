@@ -1,4 +1,4 @@
-#!/home/prushton/Documents/code/rs/CMV/src/venv/bin/python
+#!/home/prushton/Documents/code/rs/CMV/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys
