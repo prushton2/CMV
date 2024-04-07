@@ -13,28 +13,25 @@ from textual .reactive import reactive ,var
 
 
 def update (gdb ,memory ,lines ):
-    gdb .read ();
     out =gdb .read ();
     
-    if get_lines_by_prefix (out ,"^")[0].startswith ("error") or get_lines_by_prefix (out ,"*")[0].startswith ("stopped"):
-        lines .append ("End of Program")
-        return (memory ,lines )
+    if len (get_lines_by_prefix (out ,"^"))>0:
+        if get_lines_by_prefix (out ,"^")[0].startswith ("^error"):
+            return (memory ,lines ,out +"\n detected")
+            
+        
         
     
+    
+    out =gdb .read ()
     
     lines .append (get_lines_by_prefix (out ,"~")[0][2:-3])
     #remove preceeding integers from line
     lines [-1]=lines [-1][len (re .findall (r"^[0-9]*",lines [-1])[0]):]
     lines [-1]=re .sub (r"\\t","",lines [-1])
     
-    try :
-        memory =map_memory (gdb ,memory );
-        
     
-    except ():
-        return ;
-        
-    
+    memory =map_memory (gdb ,memory );
     
     if (re .search (r"^\s*.*= (\(.*\)|)malloc\(.*\)",lines [-2])):
         #retrieve variable name that was malloc'd to from the line
@@ -60,7 +57,7 @@ def update (gdb ,memory ,lines ):
         
     
     
-    return (memory ,lines )
+    return (memory ,lines ,out )
     
 
 
@@ -88,13 +85,14 @@ class TUI (App ):
     
     def on_button_pressed (self ,event ):
         self .gdb .writeln ("n")
-        (self .memory ,self .lines )=update (self .gdb ,self .memory ,self .lines );
+        (self .memory ,self .lines ,debug )=update (self .gdb ,self .memory ,self .lines );
         
         rendered_text =render_memory_text (self .memory )
         
         self .query_one ("#mem").update (rendered_text [0])
         self .query_one ("#vars").update (rendered_text [1])
         self .query_one ("#lines").update ("\n".join (self .lines [-4:-1]))
+        self .query_one ("#debug").update (debug )
         
     
     
@@ -104,6 +102,7 @@ class TUI (App ):
         yield Static (str (self .gdb ),id ="mem");
         yield Static ("",id ="vars");
         yield Static ("",id ="lines");
+        yield Static ("",id ="debug");
         yield Footer ();
         
     
