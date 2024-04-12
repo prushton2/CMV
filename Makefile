@@ -15,3 +15,6 @@ clean:
 	rm -rf ./dist
 	rm -rf ./main.spec
 	rm -rf ./transpile
+
+c:
+	gcc -o main main.c -g
