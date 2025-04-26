@@ -1,0 +1,24 @@
+import gdb
+
+# gdb.execute("c")
+gdb.execute("file ./main")
+gdb.execute("break main")
+gdb.execute("set debuginfod enabled off")
+gdb.execute("run")
+gdb.execute("n")
+
+lastMemoryChange = ""
+memoryState = []
+
+for i in range(5) {
+    gdb.execute("next")
+
+    lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
+    line = ""
+    
+    with open(line.symtab.fullname(), "r") as file:
+        content = file.readlines() 
+        line = content[lineinfo.line-1]
+    
+    print(f"\n-----\n{lineinfo.line}: {line}\n-----\n")
+}
