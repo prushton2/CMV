@@ -1,6 +1,15 @@
 {
     "files.associations": {
         "dlfcn.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "stddef.h": "c",
+        "array": "c",
+        "bitset": "c",
+        "string_view": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "ranges": "c",
+        "span": "c",
+        "valarray": "c"
     }
 }

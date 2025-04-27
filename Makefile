@@ -1,8 +1,11 @@
 buildc:
-	gcc -o main debug/main.c src/cmv.c -g
+	cd debug; \
+	gcc -o main main2.c ../clib/cmv.c -g
 
 run:
 	python -m bython-prushton ./src -o ./dist -t
+	cd debug; \
+	gdb -x ../dist/gdbmod.py
 
 clean:
 	-rm -rf dist

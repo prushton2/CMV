@@ -1,0 +1,77 @@
+import gdb
+import time
+import json
+def main():
+    # gdb.execute("c")
+    gdb.execute("file ./main")
+    gdb.execute("break main")
+    gdb.execute("set debuginfod enabled off")
+    gdb.execute("run")
+    # gdb.execute("n")
+    # This allows me to write to a file less
+    filebuffer=""
+    # no dupe mem calls
+    lastmemcall=""
+    with open("cmv","w")as file:
+        file.truncate(0)
+    with open("../dist/memoryStates.json","w")as file:
+        file.write("")
+    while True:
+        lineinfo=gdb.find_pc_line(gdb.parse_and_eval("$pc"))
+        if(lineinfo.symtab==None):
+            break;
+        if(lineinfo.symtab.fullname().endswith("cmv.c")):
+            gdb.execute("s")
+            continue
+        # with open(lineinfo.symtab.fullname(), "r") as file {
+        #     content = file.readlines() 
+        #     line = content[lineinfo.line-1]
+        # }
+        memcall=updateMemCall(lastmemcall)
+        lastmemcall=memcall
+        # if(json.dumps(newState["mmap"]) != json.dumps(oldState["mmap"])) {
+        #     statebuffer += str(lineinfo.line);
+        #     for key in newState["mmap"] {
+        #         statebuffer += f",{key}:{newState["mmap"][key]}"
+        #     }
+        #     statebuffer += "\n"
+        # }
+        if(memcall!=None):
+            filebuffer+=f"{lineinfo.symtab.fullname()},{lineinfo.line},{memcall}\n"
+        if(len(filebuffer)>1073741824):
+            with open("../dist/memoryStates.json","a")as file:
+                file.write(filebuffer)
+            filebuffer=""
+        gdb.execute("s")
+    with open("../dist/memoryStates.json","a")as file:
+        file.write(filebuffer)
+def updateMemCall(lastmemcall):
+    with open("cmv","r")as file:
+        cmemcall=file.readlines()
+        if(len(cmemcall)<=0):
+            return None
+        if(lastmemcall!=cmemcall[0]):
+            return cmemcall[0]
+    return None
+def updateMmap(mmap):
+    content=""
+    newmap=json.loads(json.dumps(mmap))
+    with open("cmv","r")as file:
+        content=file.readlines()
+        if(len(content)<=0):
+            return newmap
+    alloc_info=content[0].split("-")
+    # 0 is a or f for alloc or free
+    # 1 is the address
+    # 2 is the size
+    if(alloc_info[0]=='a'):
+        # alloc mem
+        newmap[alloc_info[1]]=alloc_info[2]
+    elif(alloc_info[0]=='f'):
+        #dealloc mem
+        try:
+            del newmap[alloc_info[1]]
+        except:pass
+    return newmap
+if(__name__=="__main__"):
+    main()
