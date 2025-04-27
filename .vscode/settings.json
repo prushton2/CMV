@@ -10,6 +10,8 @@
         "initializer_list": "c",
         "ranges": "c",
         "span": "c",
-        "valarray": "c"
+        "valarray": "c",
+        "cmv.h": "c",
+        "mman.h": "c"
     }
 }

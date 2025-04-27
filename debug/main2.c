@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 int main() {
-    init_mem_pointer();
+    initMem();
 
     int *arr = (int *)malloc(sizeof(int) * 10);
     if (arr) {

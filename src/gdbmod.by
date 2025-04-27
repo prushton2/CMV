@@ -1,6 +1,12 @@
 import gdb
 import time
 import json
+import mmap
+import os
+import struct
+
+SHARED_FILE = "./cmv"
+SIZE = 32
 
 def main() {
     # gdb.execute("c")
@@ -10,27 +16,35 @@ def main() {
     gdb.execute("run")
     # gdb.execute("n")
 
+    shm = null
     # This allows me to write to a file less
     filebuffer = ""
-
     # no dupe mem calls
     lastmemcall = ""
-
-
-    with open("cmv", "w") as file {
-        file.truncate(0)
-    }
 
     with open("../dist/memoryStates.json", "w") as file {
         file.write("")
     }
 
+    while true {
+
+        # try {
+            with open(SHARED_FILE, "r+b") as file {
+                shm = mmap.mmap(file.fileno(), SIZE, access=mmap.ACCESS_READ)
+                read_value = struct.unpack("<BBBBBBBBBBBi", shm[:15])
+                print(f"READ FROM MEM:::  {read_value}")
+            }
+            break
+        # } except {}
+        gdb.execute("s")
+        time.sleep(0.5)
+    }
 
     while true {
 
         lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
         if(lineinfo.symtab == null) {
-            break;
+            break
         }
 
         if(lineinfo.symtab.fullname().endswith("cmv.c")) {

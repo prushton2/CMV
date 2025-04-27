@@ -11,10 +11,9 @@ struct encoder {
 #define realloc(ptr, size) debug_realloc(ptr, size);
 #define free(ptr) debug_free(ptr)
 
-
 void* debug_malloc(size_t size);
 void* debug_realloc(void* ptr, size_t size);
 void  debug_free(void* ptr);
-int init_mem_pointer();
+void initMem();
 
 #endif
