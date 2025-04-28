@@ -1,13 +1,45 @@
 import os
 import subprocess
+import mmap
+
+SHARED_FILE = "./cmv"
+SIZE = 1024
+shm = null
+
+memory = {}
 
 def main() {
-    subprocess.run(
+    global shm, SHARED_FILE, SIZE
+
+    with open(SHARED_FILE, "w") as file {
+        file.write("\0"*SIZE)
+    }
+
+    file = open(SHARED_FILE, "r+b")
+    shm = mmap.mmap(file.fileno(), os.path.getsize(SHARED_FILE), access=mmap.ACCESS_READ | mmap.ACCESS_WRITE)
+
+    proc = subprocess.run(
         ["gdb", "--silent", "-x", "../dist/gdbmod.py"],
         # stdout=subprocess.DEVNULL,
         cwd="debug"
     )
-    # print("Open for business")
+
+    # while true {
+    #     input()
+
+    #     shm[31] = 1
+
+    #     print(f"{shm[31]}")
+
+    #     mtype = chr(shm[0])
+    #     address = (shm[1:15]).decode("utf-8")
+    #     size = int.from_bytes(shm[16:20], byteorder='little')
+
+    #     # print(f"{mtype}-{address}-{size}")
+    #     # print(shm[0])
+    # }
+
+    
 }
 
 if __name__ == "__main__" {

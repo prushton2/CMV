@@ -16,8 +16,6 @@ SHARED_FILE = "../cmv"
 SIZE = 1024
 shm = null
 
-memory = {}
-
 def next(c) {
     global shm
     for i in range(c) {
@@ -30,19 +28,30 @@ def next(c) {
                 gdb.execute("s")
             }
 
-            # print("MALLOC/FREE")
+            # mtype = chr(shm[0])
+            # address = (shm[1:15]).decode("utf-8")
+            # size = int.from_bytes(shm[16:20], byteorder='little')
 
-            mtype = chr(shm[0])
-            address = (shm[1:15]).decode("utf-8")
-            size = int.from_bytes(shm[16:20], byteorder='little')
-
-            if(mtype == "a") {
-                memory[address] = size
-            } elif (mtype == "f") {
-                del memory[address]
-            }
+            # if(mtype == "a") {
+            #     memory[address] = size
+            # } elif (mtype == "f") {
+            #     del memory[address]
+            # }
         }
-        shm[32:32+len(lineinfo.symtab.fullname())] = lineinfo.symtab.fullname().encode('utf-8')
+        print(shm[1])
+        while(shm[0] == 1) {
+            time.sleep(0.01)
+        }
+        shm[0] = 1
+        shm[20:24] = b'abcd'
+        # shm[20:24] = lineinfo.line.to_bytes(4, 'big')
+        shm[0] = 0
+
+        shm.flush()
+        shm.seek(0)
+        print(shm[1])
+
+        # shm[24:24+len(lineinfo.symtab.fullname())] = lineinfo.symtab.fullname().encode('utf-8')
     }
 }
 
@@ -51,19 +60,9 @@ def main() {
     global shm
     gdb.execute("file ./main")
     gdb.execute("set confirm off")
-    gdb.execute("break main")
     gdb.execute("set debuginfod enabled off")
+    gdb.execute("break main")
     gdb.execute("run")
-
-    filebuffer = ""
-
-    with open("../dist/memoryStates.json", "w") as file {
-        file.write("")
-    }
-
-    with open(SHARED_FILE, "w") as file {
-        file.write("\0"*SIZE)
-    }
 
     file = open(SHARED_FILE, "r+b")
     shm = mmap.mmap(file.fileno(), os.path.getsize(SHARED_FILE), access=mmap.ACCESS_READ | mmap.ACCESS_WRITE)
@@ -78,12 +77,18 @@ def main() {
             break
         }
 
-        input()
+        # while(shm[31] == 0) {
+        #     print("Waiting")
+        # }
+        # time.sleep(1)
+        # print("Waited")
+        # shm[31] = 0
         next(1)
-        print(f"{memory} |{shm[32:544]}|")
+        # print(f"|{shm[0:32]}|")
         
-        with open("../dist/mmap.json", "w") as file {
-            file.write(json.dumps(memory, indent=4))
+        with open("../dist/mmap", "a") as file {
+            file.write(shm[0:1024].decode("utf-8")) #.decode("utf-8"))
+            file.write("\n")
         }
 
     }
@@ -93,7 +98,4 @@ def main() {
 
 if(__name__ == "__main__") {
     main()
-    # app = tui.StopwatchApp
-    # app.run()
-    pass
 }

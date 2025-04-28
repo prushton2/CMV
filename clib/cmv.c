@@ -27,12 +27,22 @@ void writeMem(char type, void* address, size_t size) {
         exit(1);
     }
 
+    while(shm[0] == 1) {
+        sleep(1);
+    }
+
+    memset(shm, 1, 1);
+
     char buffer[16];
     snprintf(buffer, sizeof(buffer), "%p", address);
 
-    memcpy(shm, &type, 1);
-    memcpy(shm+1, &buffer, 16);
-    memcpy(shm+16, &size, 4);
+    memcpy(shm+1, &type, 1);
+    memcpy(shm+2, &buffer, 16);
+    memcpy(shm+17, &size, 4);
+
+    msync(shm, size, MS_SYNC);
+
+    memset(shm, 0, 1);
 }
 
 void* debug_malloc(size_t size) {
