@@ -2,8 +2,6 @@
 #include <stdio.h>
 
 int main() {
-    initMem();
-
     int *arr  = (int*)malloc(sizeof(int) * 10);
     int *arr2 = (int*)malloc(sizeof(int) * 10);
 

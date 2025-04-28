@@ -12,38 +12,18 @@
 
 #define SIZE 1024
 
-char* shm = NULL;
-
-void initMem() {
-    int fd = open("/dev/shm/cmv", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-    // int fd = open("../cmv");
-    // ftruncate(fd, SIZE);
-    shm = (char*)mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    close(fd);
-}
-
 void writeMem(char type, void* address, size_t size) {
-    if(shm == NULL) {
-        fprintf(stderr, "Place `initMem()` at the beginning of your main function\n");
-        exit(1);
-    }
-
-    // while(shm[0] == 1) {
-    //     sleep(1);
-    // }
-
-    // memset(shm, 1, 1);
+    int fd = open("../cmv", O_RDWR | O_CREAT, 0666);
+    char* shm = (char*)mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
     char buffer[16];
     snprintf(buffer, sizeof(buffer), "%p", address);
-
-    memcpy(shm+1, &type, 1);
-    memcpy(shm+2, &buffer, 16);
-    memcpy(shm+17, &size, 4);
-
-    // msync(shm, size, MS_SYNC);
-
-    // memset(shm, 0, 1);
+    
+    memcpy(shm+4, &type, 1);
+    memcpy(shm+5, &buffer, 16);
+    memcpy(shm+20, &size, 4);
+ 
+    close(fd);
 }
 
 void* debug_malloc(size_t size) {

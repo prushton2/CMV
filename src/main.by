@@ -9,18 +9,34 @@ shm = null
 
 memory = {}
 
-def main() {
-    global shm, SHARED_FILE, SIZE
-    # global shm, SHARED_FILE, SIZE
-
-    with open(SHARED_FILE, "w") as file {
-        file.write("\0"*SIZE)
+def mmap_read() {
+    with open(SHARED_FILE, mode="r", encoding="utf8") as file_obj {
+        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_READ) as mmap_obj {
+            return mmap_obj.read()
+        }
     }
+}
 
-    fd = os.open("./cmv", os.O_RDWR | os.O_CREAT, 0o666)
-    os.ftruncate(fd, SIZE)
-    shm = mmap.mmap(fd, SIZE, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE)
+def mmap_write_str(offset, data) {
+    with open(SHARED_FILE, mode="r+", encoding="utf8") as file_obj {
+        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_WRITE) as mmap_obj {
+            mmap_obj[offset:offset+len(data)] = data.encode("utf-8")
+            mmap_obj.flush()
+        }
+    }
+}
 
+def mmap_write_int(offset, data) {
+    with open(SHARED_FILE, mode="r+", encoding="utf8") as file_obj {
+        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_WRITE) as mmap_obj {
+            bytedata = data.to_bytes(4, byteorder='big')
+            mmap_obj[offset:offset+len(bytedata)] = bytedata
+            mmap_obj.flush()
+        }
+    }
+}
+
+def main() {
     proc = subprocess.Popen(
         ["gdb", "--silent", "-x", "../dist/gdbmod.py"],
         stdout=subprocess.DEVNULL,
@@ -28,72 +44,16 @@ def main() {
     )
 
     while true {
-        print(shm[0])
         input()
-        shm[0] = 1
-
-        print("Bit Set {shm[0]}")
-
-        while(shm[0] == 1) {
-            time.sleep(0.1)
-        }
-
-        print("Bit Cleared")
-
-        time.sleep(1)
-
-    #     print(f"{shm[31]}")
-
-    #     mtype = chr(shm[0])
-    #     address = (shm[1:15]).decode("utf-8")
-    #     size = int.from_bytes(shm[16:20], byteorder='little')
-
-    #     # print(f"{mtype}-{address}-{size}")
-    #     # print(shm[0])
-    }
-
     
+        mmap_write_int(0, 1)
+
+        print(f"Bit Set {mmap_read()[0]}")
+
+        
+    }
 }
 
 if __name__ == "__main__" {
     main()
 }
-
-"""
-import mmap
-    import os
-
-    SIZE = 1024
-
-    shm = None
-
-    def init_mem():
-        global shm
-        os.close(fd)
-
-    def write_mem(mem_type, address, size):
-        global shm
-        if shm is None:
-            raise RuntimeError("Place `init_mem()` at the beginning of your main function")
-
-        buffer = f"{address:#x}".encode('utf-8')
-
-        shm[1:2] = mem_type.encode('utf-8')
-        shm[2:18] = buffer.ljust(16, b'\x00')
-        shm[17:21] = size.to_bytes(4, byteorder='little')
-
-    def debug_malloc(size):
-        ptr = bytearray(size)
-        write_mem('a', id(ptr), size)
-        return ptr
-
-    def debug_realloc(ptr, size):
-        ptr.extend(bytearray(size - len(ptr)))
-        write_mem('a', id(ptr), size)
-        return ptr
-
-    def debug_free(ptr):
-        if ptr is None:
-            raise ValueError("Attempted to free a NULL pointer")
-        write_mem('f', id(ptr), 0)
-"""

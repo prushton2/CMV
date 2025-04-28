@@ -13,6 +13,7 @@
         "valarray": "c",
         "cmv.h": "c",
         "mman.h": "c",
-        "stat.h": "c"
+        "stat.h": "c",
+        "fcntl.h": "c"
     }
 }

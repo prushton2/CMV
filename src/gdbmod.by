@@ -17,8 +17,34 @@ SHARED_FILE = "../cmv"
 SIZE = 1024
 shm = null
 
+def mmap_read() {
+    with open(SHARED_FILE, mode="r", encoding="utf8") as file_obj {
+        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_READ) as mmap_obj {
+            return mmap_obj.read()
+        }
+    }
+}
+
+def mmap_write_str(offset, data) {
+    with open(SHARED_FILE, mode="r+", encoding="utf8") as file_obj {
+        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_WRITE) as mmap_obj {
+            mmap_obj[offset:offset+len(data)] = data.encode("utf-8")
+            mmap_obj.flush()
+        }
+    }
+}
+
+def mmap_write_int(offset, data) {
+    with open(SHARED_FILE, mode="r+", encoding="utf8") as file_obj {
+        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_WRITE) as mmap_obj {
+            bytedata = data.to_bytes(4, byteorder='big')
+            mmap_obj[offset:offset+len(bytedata)] = bytedata
+            mmap_obj.flush()
+        }
+    }
+}
+
 def next(c) {
-    global shm
     for i in range(c) {
         gdb.execute("s")
         lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
@@ -33,17 +59,17 @@ def next(c) {
             # mtype = chr(shm[0])
             # address = (shm[1:15]).decode("utf-8")
             # size = int.from_bytes(shm[16:20], byteorder='little')
-            # data = f"{mtype}-{address}-{size}".encode("utf-8") q
+            # data = f"{mtype}-{address}-{size}".encode("utf-8")
         }
-        # time.sleep(0.1)
+        mmap_write_int(24, lineinfo.line)
+        mmap_write_str(28, lineinfo.symtab.fullname())
 
-
-        newdata = lineinfo.line.to_bytes(4, byteorder='big')
-        filename = lineinfo.symtab.fullname().encode("utf-8")
-        current_data = bytearray(shm[:])
-        current_data[20:20 + len(newdata)] = newdata
-        current_data[24:24+len(filename)] = filename
-        shm[:] = current_data
+        # newdata = lineinfo.line.to_bytes(4, byteorder='big')
+        # filename = lineinfo.symtab.fullname().encode("utf-8")
+        # current_data = bytearray(shm[:])
+        # current_data[20:20 + len(newdata)] = newdata
+        # current_data[24:24+len(filename)] = filename
+        # shm[:] = current_data
     }
 }
 
@@ -59,6 +85,10 @@ def main() {
     file = open(SHARED_FILE, "r+b")
     shm = mmap.mmap(file.fileno(), os.path.getsize(SHARED_FILE), access=mmap.ACCESS_READ | mmap.ACCESS_WRITE)
 
+    with open("../dist/mmap", "w") as file {
+        file.write("")
+    }
+
     while true {
         lineinfo = null
         caller = null
@@ -69,23 +99,22 @@ def main() {
             break
         }
 
-        while(shm[0] == 0) {
+        while(mmap_read()[3] == 0) {
             time.sleep(0.1)
         }
-        
-        with open("../dist/mmap", "a") as file {
-            file.write("Bit Set\n")
-        }
-        shm[0] = 0
 
-        # next(1)
+        mmap_write_int(0, 0)
 
-        with open("../dist/mmap", "a") as file {
-            file.write(shm[0:1024].decode("utf-8")) #.decode("utf-8"))
-            file.write("\n")
-        }
+        next(1)
+
+        time.sleep(1)
 
     }
+
+    with open("../dist/mmap", "a") as file {
+        file.write("Done\n")
+    }
+
     gdb.execute("q")
     exit(0)
 }
