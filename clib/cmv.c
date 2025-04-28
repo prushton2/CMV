@@ -10,14 +10,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define SIZE 64
+#define SIZE 1024
 
 char* shm = NULL;
 
 void initMem() {
     int fd = open("../cmv", O_RDWR | O_CREAT, 0666);
-    ftruncate(fd, 64);
-    shm = (char*)mmap(NULL, 64, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    ftruncate(fd, SIZE);
+    shm = (char*)mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     close(fd);
 }
 

@@ -4,9 +4,10 @@ import subprocess
 def main() {
     subprocess.run(
         ["gdb", "--silent", "-x", "../dist/gdbmod.py"],
-        stdout=subprocess.DEVNULL,
+        # stdout=subprocess.DEVNULL,
         cwd="debug"
     )
+    # print("Open for business")
 }
 
 if __name__ == "__main__" {

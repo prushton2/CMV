@@ -13,26 +13,24 @@ import mmap
 # import tui
 
 SHARED_FILE = "../cmv"
-SIZE = 64
+SIZE = 1024
 shm = null
 
 memory = {}
 
 def next(c) {
     global shm
-    if(c == "") {
-        c = 1
-    }
-    c = int(c)
     for i in range(c) {
-        gdb.execute("s", to_string=true)
+        gdb.execute("s")
         lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
 
         if(lineinfo.symtab.fullname().endswith("cmv.c")) {
             while(lineinfo.symtab.fullname().endswith("cmv.c")) {
                 lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
-                gdb.execute("s", to_string=true)
+                gdb.execute("s")
             }
+
+            # print("MALLOC/FREE")
 
             mtype = chr(shm[0])
             address = (shm[1:15]).decode("utf-8")
@@ -44,6 +42,7 @@ def next(c) {
                 del memory[address]
             }
         }
+        shm[32:32+len(lineinfo.symtab.fullname())] = lineinfo.symtab.fullname().encode('utf-8')
     }
 }
 
@@ -52,11 +51,6 @@ def main() {
     global shm
     gdb.execute("file ./main")
     gdb.execute("set confirm off")
-    # gdb.execute("break debug_malloc")
-    # gdb.execute("break debug_realloc")
-    # gdb.execute("break debug_free")
-    gdb.execute("set logging on")
-    gdb.execute("set logging file /dev/null")
     gdb.execute("break main")
     gdb.execute("set debuginfod enabled off")
     gdb.execute("run")
@@ -68,11 +62,11 @@ def main() {
     }
 
     with open(SHARED_FILE, "w") as file {
-        file.write(" "*64)
+        file.write("\0"*SIZE)
     }
 
     file = open(SHARED_FILE, "r+b")
-    shm = mmap.mmap(file.fileno(), SIZE, access=mmap.ACCESS_READ)
+    shm = mmap.mmap(file.fileno(), os.path.getsize(SHARED_FILE), access=mmap.ACCESS_READ | mmap.ACCESS_WRITE)
 
     while true {
         lineinfo = null
@@ -84,18 +78,21 @@ def main() {
             break
         }
 
-        next(input())
-
+        input()
+        next(1)
+        print(f"{memory} |{shm[32:544]}|")
+        
         with open("../dist/mmap.json", "w") as file {
             file.write(json.dumps(memory, indent=4))
         }
+
     }
     gdb.execute("q")
     exit(0)
 }
 
 if(__name__ == "__main__") {
-    # main()
+    main()
     # app = tui.StopwatchApp
     # app.run()
     pass
