@@ -15,8 +15,9 @@
 char* shm = NULL;
 
 void initMem() {
-    int fd = open("../cmv", O_RDWR | O_CREAT, 0666);
-    ftruncate(fd, SIZE);
+    int fd = open("/dev/shm/cmv", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    // int fd = open("../cmv");
+    // ftruncate(fd, SIZE);
     shm = (char*)mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     close(fd);
 }
@@ -27,11 +28,11 @@ void writeMem(char type, void* address, size_t size) {
         exit(1);
     }
 
-    while(shm[0] == 1) {
-        sleep(1);
-    }
+    // while(shm[0] == 1) {
+    //     sleep(1);
+    // }
 
-    memset(shm, 1, 1);
+    // memset(shm, 1, 1);
 
     char buffer[16];
     snprintf(buffer, sizeof(buffer), "%p", address);
@@ -40,9 +41,9 @@ void writeMem(char type, void* address, size_t size) {
     memcpy(shm+2, &buffer, 16);
     memcpy(shm+17, &size, 4);
 
-    msync(shm, size, MS_SYNC);
+    // msync(shm, size, MS_SYNC);
 
-    memset(shm, 0, 1);
+    // memset(shm, 0, 1);
 }
 
 void* debug_malloc(size_t size) {

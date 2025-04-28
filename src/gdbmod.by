@@ -10,6 +10,7 @@ import gdb
 import json
 import time
 import mmap
+import copy
 # import tui
 
 SHARED_FILE = "../cmv"
@@ -28,30 +29,21 @@ def next(c) {
                 gdb.execute("s")
             }
 
+            # Somehow this prevents the program from deleting other data in mem (idk either)
             # mtype = chr(shm[0])
             # address = (shm[1:15]).decode("utf-8")
             # size = int.from_bytes(shm[16:20], byteorder='little')
-
-            # if(mtype == "a") {
-            #     memory[address] = size
-            # } elif (mtype == "f") {
-            #     del memory[address]
-            # }
+            # data = f"{mtype}-{address}-{size}".encode("utf-8") q
         }
-        print(shm[1])
-        while(shm[0] == 1) {
-            time.sleep(0.01)
-        }
-        shm[0] = 1
-        shm[20:24] = b'abcd'
-        # shm[20:24] = lineinfo.line.to_bytes(4, 'big')
-        shm[0] = 0
+        # time.sleep(0.1)
 
-        shm.flush()
-        shm.seek(0)
-        print(shm[1])
 
-        # shm[24:24+len(lineinfo.symtab.fullname())] = lineinfo.symtab.fullname().encode('utf-8')
+        newdata = lineinfo.line.to_bytes(4, byteorder='big')
+        filename = lineinfo.symtab.fullname().encode("utf-8")
+        current_data = bytearray(shm[:])
+        current_data[20:20 + len(newdata)] = newdata
+        current_data[24:24+len(filename)] = filename
+        shm[:] = current_data
     }
 }
 
@@ -77,15 +69,17 @@ def main() {
             break
         }
 
-        # while(shm[31] == 0) {
-        #     print("Waiting")
-        # }
-        # time.sleep(1)
-        # print("Waited")
-        # shm[31] = 0
-        next(1)
-        # print(f"|{shm[0:32]}|")
+        while(shm[0] == 0) {
+            time.sleep(0.1)
+        }
         
+        with open("../dist/mmap", "a") as file {
+            file.write("Bit Set\n")
+        }
+        shm[0] = 0
+
+        # next(1)
+
         with open("../dist/mmap", "a") as file {
             file.write(shm[0:1024].decode("utf-8")) #.decode("utf-8"))
             file.write("\n")
