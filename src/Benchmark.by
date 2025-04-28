@@ -1,0 +1,43 @@
+import time
+
+class Benchmark {
+
+    sections = {}
+    checkpoint = 0
+
+    def __init__(self) {
+        sections = {}
+        checkpoint = 0
+    }
+
+    def reset(self) {
+        self.checkpoint = time.time()
+    }
+
+    def cleartimes(self) {
+        self.sections = {}
+    }
+
+    def mark(self, sectionName) {
+
+        if sectionName not in self.sections {
+            self.sections[sectionName] = 0
+        }
+        self.sections[sectionName] += time.time() - self.checkpoint
+
+        self.checkpoint = time.time()
+    }
+
+    def report(self) {
+        string = "Benchmark\n"
+        totalDuration = 0
+        for sectionName, duration in self.sections.items() {
+            totalDuration += duration
+        }
+        for sectionName, duration in self.sections.items() {
+            string += f"{sectionName}: {duration} seconds {duration/totalDuration*100:.2f}%\n"
+        }
+        string += f"Total: {totalDuration}\n"
+        return string
+    }
+}

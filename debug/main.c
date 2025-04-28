@@ -3,9 +3,10 @@
 #include "./my_string.h"
 #include "./generic_vector.h"
 #include "./status.h"
+#include "../clib/cmv.h"
 
 int main(int argc, char* argv[]) {
-	
+	initMem();
 	//Load words into giant ass array
 	GENERIC_VECTOR vec[33] = {
 		generic_vector_init_default(&my_string_init_copy, &my_string_destroy),

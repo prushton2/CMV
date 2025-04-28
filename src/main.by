@@ -1,0 +1,14 @@
+import os
+import subprocess
+
+def main() {
+    subprocess.run(
+        ["gdb", "--silent", "-x", "../dist/gdbmod.py"],
+        stdout=subprocess.DEVNULL,
+        cwd="debug"
+    )
+}
+
+if __name__ == "__main__" {
+    main()
+}

@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200112L // Or 200809L for newer systems
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -9,12 +10,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#define SIZE 64
+
 char* shm = NULL;
 
 void initMem() {
-    int fd = open("cmv", O_RDWR | O_CREAT, 0666);
-    ftruncate(fd, 32);
-    shm = (char*)mmap(NULL, 32, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    int fd = open("../cmv", O_RDWR | O_CREAT, 0666);
+    ftruncate(fd, 64);
+    shm = (char*)mmap(NULL, 64, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     close(fd);
 }
 
@@ -24,16 +27,12 @@ void writeMem(char type, void* address, size_t size) {
         exit(1);
     }
 
-    char f[32] = "--------------------------------";
-
     char buffer[16];
     snprintf(buffer, sizeof(buffer), "%p", address);
 
-    memcpy(shm, &f, 32);
     memcpy(shm, &type, 1);
     memcpy(shm+1, &buffer, 16);
     memcpy(shm+16, &size, 4);
-    // 0x5555555592a0
 }
 
 void* debug_malloc(size_t size) {
@@ -46,7 +45,6 @@ void* debug_malloc(size_t size) {
     }
 
     writeMem('a', ptr, size);
-    // *((int *)shared_ptr) = 1;
 
     return ptr;
 }
@@ -73,8 +71,6 @@ void debug_free(void* ptr) {
     }
     
     writeMem('f', ptr, 0);
-
-    printf("%c", shm[0]);
 
     #undef free
     free(ptr);

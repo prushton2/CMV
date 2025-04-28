@@ -4,8 +4,7 @@ buildc:
 
 run:
 	python -m bython-prushton ./src -o ./dist -t
-	cd debug; \
-	gdb -x ../dist/gdbmod.py
+	python ./dist/main.py
 
 clean:
 	-rm -rf dist

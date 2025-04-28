@@ -1,136 +1,102 @@
-import gdb
-import time
-import json
-import mmap
 import os
-import struct
+import sys
 
-SHARED_FILE = "./cmv"
-SIZE = 32
+path = os.getcwd().split("/")[0:-1]
+path.append("dist")
+path = "/".join(path)
+sys.path.insert(0, path)
+
+import gdb
+import json
+import time
+import mmap
+# import tui
+
+SHARED_FILE = "../cmv"
+SIZE = 64
+shm = null
+
+memory = {}
+
+def next(c) {
+    global shm
+    if(c == "") {
+        c = 1
+    }
+    c = int(c)
+    for i in range(c) {
+        gdb.execute("s", to_string=true)
+        lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
+
+        if(lineinfo.symtab.fullname().endswith("cmv.c")) {
+            while(lineinfo.symtab.fullname().endswith("cmv.c")) {
+                lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
+                gdb.execute("s", to_string=true)
+            }
+
+            mtype = chr(shm[0])
+            address = (shm[1:15]).decode("utf-8")
+            size = int.from_bytes(shm[16:20], byteorder='little')
+
+            if(mtype == "a") {
+                memory[address] = size
+            } elif (mtype == "f") {
+                del memory[address]
+            }
+        }
+    }
+}
+
 
 def main() {
-    # gdb.execute("c")
+    global shm
     gdb.execute("file ./main")
+    gdb.execute("set confirm off")
+    # gdb.execute("break debug_malloc")
+    # gdb.execute("break debug_realloc")
+    # gdb.execute("break debug_free")
+    gdb.execute("set logging on")
+    gdb.execute("set logging file /dev/null")
     gdb.execute("break main")
     gdb.execute("set debuginfod enabled off")
     gdb.execute("run")
-    # gdb.execute("n")
 
-    shm = null
-    # This allows me to write to a file less
     filebuffer = ""
-    # no dupe mem calls
-    lastmemcall = ""
 
     with open("../dist/memoryStates.json", "w") as file {
         file.write("")
     }
 
-    while true {
-
-        # try {
-            with open(SHARED_FILE, "r+b") as file {
-                shm = mmap.mmap(file.fileno(), SIZE, access=mmap.ACCESS_READ)
-                read_value = struct.unpack("<BBBBBBBBBBBi", shm[:15])
-                print(f"READ FROM MEM:::  {read_value}")
-            }
-            break
-        # } except {}
-        gdb.execute("s")
-        time.sleep(0.5)
+    with open(SHARED_FILE, "w") as file {
+        file.write(" "*64)
     }
+
+    file = open(SHARED_FILE, "r+b")
+    shm = mmap.mmap(file.fileno(), SIZE, access=mmap.ACCESS_READ)
 
     while true {
-
-        lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
-        if(lineinfo.symtab == null) {
-            break
-        }
-
-        if(lineinfo.symtab.fullname().endswith("cmv.c")) {
-            gdb.execute("s")
-            continue
-        }
-
-        # with open(lineinfo.symtab.fullname(), "r") as file {
-        #     content = file.readlines() 
-        #     line = content[lineinfo.line-1]
-        # }
-
-        memcall = updateMemCall(lastmemcall)
-        lastmemcall = memcall
-
-        # if(json.dumps(newState["mmap"]) != json.dumps(oldState["mmap"])) {
-        #     statebuffer += str(lineinfo.line);
-        #     for key in newState["mmap"] {
-        #         statebuffer += f",{key}:{newState["mmap"][key]}"
-        #     }
-        #     statebuffer += "\n"
-        # }
-
-        if(memcall != null) {
-            filebuffer += f"{lineinfo.symtab.fullname()},{lineinfo.line},{memcall}\n"
-        }
-
-        if(len(filebuffer) > 1073741824) {
-            with open("../dist/memoryStates.json", "a") as file {
-                file.write(filebuffer)
-            }
-            filebuffer = ""
-        }
-
-        gdb.execute("s")
-    }
-
-    with open("../dist/memoryStates.json", "a") as file {
-        file.write(filebuffer)
-    }
-
-}
-
-def updateMemCall(lastmemcall) {
-    with open("cmv", "r") as file {
-        cmemcall = file.readlines()
-        if(len(cmemcall) <= 0) {
-            return null
-        }
-
-        if(lastmemcall != cmemcall[0]) {
-            return cmemcall[0]
-        }
-    }
-    return null
-}
-
-def updateMmap(mmap) {
-    content = ""
-    newmap = json.loads(json.dumps(mmap))
-    with open("cmv", "r") as file {
-        content = file.readlines()
-        if(len(content) <= 0) {
-            return newmap
-        }
-    }
-
-    alloc_info = content[0].split("-")
-    # 0 is a or f for alloc or free
-    # 1 is the address
-    # 2 is the size
-
-    if(alloc_info[0] == 'a') {
-        # alloc mem
-        newmap[alloc_info[1]] = alloc_info[2]
-
-
-    } elif (alloc_info[0] == 'f') {
-        #dealloc mem
+        lineinfo = null
+        caller = null
         try {
-            del newmap[alloc_info[1]]
-        } except {}
+            caller = gdb.selected_frame().older()
+            lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
+        } except {
+            break
+        }
+
+        next(input())
+
+        with open("../dist/mmap.json", "w") as file {
+            file.write(json.dumps(memory, indent=4))
+        }
     }
-    return newmap
+    gdb.execute("q")
+    exit(0)
 }
 
 if(__name__ == "__main__") {
-    main()
+    # main()
+    # app = tui.StopwatchApp
+    # app.run()
+    pass
 }
