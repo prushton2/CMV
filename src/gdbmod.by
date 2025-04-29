@@ -19,20 +19,16 @@ def next(c) {
     global shm
     for i in range(c) {
         gdb.execute("s")
-        try {
-            lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
-        } except {
-            break
-        }
+        lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
 
-        if(lineinfo.symtab.fullname().endswith("cmv.c")) {
-            while(lineinfo.symtab.fullname().endswith("cmv.c")) {
-                lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
-                gdb.execute("s")
-            }
-        }
+        # if(lineinfo.symtab.fullname().endswith("cmv.c")) {
+        #     while(lineinfo.symtab.fullname().endswith("cmv.c")) {
+        #         lineinfo = gdb.find_pc_line(gdb.parse_and_eval("$pc"))
+        #         gdb.execute("s")
+        #     }
+        # }
         shm.write_int(24, lineinfo.line)
-        shm.write_str(28, lineinfo.symtab.fullname())
+        shm.write_str(28, lineinfo.symtab.fullname() + "\0")
     }
 }
 
@@ -61,11 +57,22 @@ def main() {
 
         shm.write_int(0, 0)
 
-        while(shm.read()[3] == 0) {
-            time.sleep(0.1)
+        while(shm.read_int(0) == 0) {
+            time.sleep(0.5)
+            with open("../dist/mmap", "a") as file {
+                file.write(".")
+            }
+        }
+
+        with open("../dist/mmap", "a") as file {
+            file.write("Next")
         }
 
         next(1)
+
+        with open("../dist/mmap", "a") as file {
+            file.write(shm.read().decode("utf-8"))
+        }
     }
 
     shm.write_int(0, 2)

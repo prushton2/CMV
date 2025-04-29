@@ -3,44 +3,80 @@ import subprocess
 import mmap
 import time
 import Memory
-import tui
+import tabulate
 
 
 shm = Memory.Shm("./cmv", 1024)
 
 def main() {
     global shm
+    titles = ["Instruction", "Memory"]
+
+    lines = []
+    mem = {}
     
-
-    while true {
-        input()
-    
-        shm.write_int(0, 1)
-
-        print(f"Bit Set [0] = {shm.read_int(0)}")
-
-        while(shm.read_int(0) == 1) {
-            time.sleep(0.1)
-        }
-
-        print("Unset, ready")
-
-        if(shm.read()[3] == 2) {
-            print("Program Exited")
-            break
-        } 
-
-        print(f"{shm.read_int(24)}")
-    }
-}
-
-if __name__ == "__main__" {
     proc = subprocess.Popen(
         ["gdb", "--silent", "-x", "../dist/gdbmod.py"],
         stdout=subprocess.DEVNULL,
         cwd="debug"
     )
 
-    app = tui.Main()
-    app.run()
+    while true {
+        input()
+    
+        shm.write_int(0, 1)
+
+        while(shm.read_int(0) == 1) {
+            time.sleep(0.1)
+        }
+        if(shm.read()[3] == 2) {
+            print("Program Exited")
+            break
+        }
+
+        # print(f"{shm.read()[28:]}")
+
+        data = bytearray()
+        for byte in shm.read()[28:]{
+            if byte == 0 {
+                break
+            }
+            data.append(byte)
+        }
+        
+        with open(data.decode("utf-8"), "r") as file {
+            lines = file.readlines()[shm.read_int(24)-5:shm.read_int(24)+1]
+        }
+
+        if(shm.read()[4] == 97) {
+            mem[shm.read()[5:19].decode("utf-8")] = shm.read_int(20, endian="little")
+        } elif(shm.read()[4] == 102) {
+            try {
+                del mem[shm.read()[5:19].decode("utf-8")]
+            } except {}
+        }
+
+
+        mem_arr = []
+        for key, val in mem.items() {
+            # print(f"Memory Key: {key.decode('utf-8').rstrip('\x00')}")
+            mem_arr.append(f"{key} {val}")
+        }
+
+        # mem_arr = [f"{key.decode("utf-8").rstrip("\x00")}, {value}" for key, value in mem.items()]
+        max_len = max(len(lines), len(mem_arr))
+        lines = [""] * (max_len - len(lines)) + lines
+        mem_arr = [""] * (max_len - len(mem_arr)) + mem_arr
+
+        table = zip(lines, mem_arr)
+        # print(lines)
+        # os.system("tput reset")
+        print(tabulate.tabulate(table, headers=titles, tablefmt="grid"))
+
+
+    }
+}
+
+if __name__ == "__main__" {
+    main()
 }
