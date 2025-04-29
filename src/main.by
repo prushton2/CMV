@@ -2,58 +2,45 @@ import os
 import subprocess
 import mmap
 import time
+import Memory
+import tui
 
-SHARED_FILE = "./cmv"
-SIZE = 1024
-shm = null
 
-memory = {}
-
-def mmap_read() {
-    with open(SHARED_FILE, mode="r", encoding="utf8") as file_obj {
-        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_READ) as mmap_obj {
-            return mmap_obj.read()
-        }
-    }
-}
-
-def mmap_write_str(offset, data) {
-    with open(SHARED_FILE, mode="r+", encoding="utf8") as file_obj {
-        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_WRITE) as mmap_obj {
-            mmap_obj[offset:offset+len(data)] = data.encode("utf-8")
-            mmap_obj.flush()
-        }
-    }
-}
-
-def mmap_write_int(offset, data) {
-    with open(SHARED_FILE, mode="r+", encoding="utf8") as file_obj {
-        with mmap.mmap(file_obj.fileno(), SIZE, access=mmap.ACCESS_WRITE) as mmap_obj {
-            bytedata = data.to_bytes(4, byteorder='big')
-            mmap_obj[offset:offset+len(bytedata)] = bytedata
-            mmap_obj.flush()
-        }
-    }
-}
+shm = Memory.Shm("./cmv", 1024)
 
 def main() {
+    global shm
+    
+
+    while true {
+        input()
+    
+        shm.write_int(0, 1)
+
+        print(f"Bit Set [0] = {shm.read_int(0)}")
+
+        while(shm.read_int(0) == 1) {
+            time.sleep(0.1)
+        }
+
+        print("Unset, ready")
+
+        if(shm.read()[3] == 2) {
+            print("Program Exited")
+            break
+        } 
+
+        print(f"{shm.read_int(24)}")
+    }
+}
+
+if __name__ == "__main__" {
     proc = subprocess.Popen(
         ["gdb", "--silent", "-x", "../dist/gdbmod.py"],
         stdout=subprocess.DEVNULL,
         cwd="debug"
     )
 
-    while true {
-        input()
-    
-        mmap_write_int(0, 1)
-
-        print(f"Bit Set {mmap_read()[0]}")
-
-        
-    }
-}
-
-if __name__ == "__main__" {
-    main()
+    app = tui.Main()
+    app.run()
 }

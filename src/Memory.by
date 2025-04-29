@@ -1,0 +1,46 @@
+import mmap
+
+class Shm {
+    shared_file = ""
+    size = 0
+
+    def __init__(self, shared_file, size) {
+        self.shared_file = shared_file
+        self.size = size
+    }
+
+    def read(self) {
+        with open(self.shared_file, mode="r", encoding="utf8") as file_obj {
+            with mmap.mmap(file_obj.fileno(), self.size, access=mmap.ACCESS_READ) as mmap_obj {
+                return mmap_obj.read()
+            }
+        }
+    }
+
+    def read_int(self, offset) {
+        with open(self.shared_file, mode="r+", encoding="utf8") as file_obj {
+            with mmap.mmap(file_obj.fileno(), self.size, access=mmap.ACCESS_WRITE) as mmap_obj {
+                return int.from_bytes(mmap_obj.read()[offset:offset+4], "big")
+            }
+        }
+    }
+
+    def write_str(self, offset, data) {
+        with open(self.shared_file, mode="r+", encoding="utf8") as file_obj {
+            with mmap.mmap(file_obj.fileno(), self.size, access=mmap.ACCESS_WRITE) as mmap_obj {
+                mmap_obj[offset:offset+len(data)] = data.encode("utf-8")
+                mmap_obj.flush()
+            }
+        }
+    }
+
+    def write_int(self, offset, data) {
+        with open(self.shared_file, mode="r+", encoding="utf8") as file_obj {
+            with mmap.mmap(file_obj.fileno(), self.size, access=mmap.ACCESS_WRITE) as mmap_obj {
+                bytedata = data.to_bytes(4, byteorder='big')
+                mmap_obj[offset:offset+len(bytedata)] = bytedata
+                mmap_obj.flush()
+            }
+        }
+    }
+}

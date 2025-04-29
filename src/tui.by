@@ -1,16 +1,68 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header
+from textual.widgets import Footer, Header, Label, Button
+from textual.containers import Horizontal, Vertical
+import Memory
+import time
 
-class StopwatchApp (App) {
+class Main(App) {
+
     def compose(self) {
         yield Header()
         yield Footer()
+        yield Horizontal(
+            Label("content", id="lines"),
+            Label("malloc", id="malloc"),
+            id="main-container"
+        )
+        yield Button("Reset", id="step", classes="centered-button")
+        yield Button("Kill", id="kill", classes="centered-button")
     }
 
-    def action_toggle_dark(self) -> None {
-        # An action to toggle dark mode."""
+    def on_button_pressed(self, event: Button.Pressed) {
+        if event.button.id == "step" {
+            
+            self.query_one('#lines').update(f"Running")
+
+            shm = Memory.Shm("./cmv", 1024)
+            shm.write_int(0, 1)
+            
+            # while(shm.read_int(0) == 1) {
+            #     time.sleep(0.1)
+            # }
+
+            # mtype = shm.read()[4]
+            # addr  = shm.read()[5:16]
+            # size  = shm.read()[16:20]
+            
+            # self.query_one('#lines').update(f"{mtype}, {addr}, {size}")
+        }
+
+        if event.button.id  == "kill" {
+            import os
+            os.system("killall gdb")
+            exit(0)
+        }
+    }
+
+    def action_toggle_dark(self) {
         self.theme = (
             "textual-dark" if self.theme == "textual-light" else "textual-light"
         )
     }
+
+    CSS = """
+    #lines {
+        width: 60%;
+    }
+
+    #malloc {
+        width: 40%;
+    }
+
+    .centered-button {
+        align: center middle;
+        margin-top: 1;
+        margin-bottom: 1;
+    }
+    """
 }
